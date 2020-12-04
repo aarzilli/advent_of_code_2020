@@ -5,27 +5,12 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
-	"os"
 )
 
 func must(err error) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-// returns x without the last character
-func nolast(x string) string {
-	return x[:len(x)-1]
-}
-
-// splits a string, trims spaces on every element
-func splitandclean(in, sep string, n int) []string {
-	v := strings.SplitN(in, sep, n)
-	for i := range v {
-		v[i] = strings.TrimSpace(v[i])
-	}
-	return v
 }
 
 // convert string to integer
@@ -35,30 +20,7 @@ func atoi(in string) int {
 	return n
 }
 
-// convert vector of strings to integer
-func vatoi(in []string) []int {
-	r := make([]int, len(in))
-	for i := range in {
-		var err error
-		r[i], err = strconv.Atoi(in[i])
-		must(err)
-	}
-	return r
-}
-
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
-func exit(n int) {
-	os.Exit(n)
-}
-
 func main() {
-	fmt.Printf("hello\n")
 	buf, err := ioutil.ReadFile("01.txt")
 	must(err)
 	v := []int{}
@@ -69,21 +31,23 @@ func main() {
 		}
 		v = append(v, atoi(line))
 	}
-	part1:
+part1:
 	for i := range v {
-		for j := i+1; j < len(v); j++ {
-			if v[i] + v[j] == 2020 {
-				fmt.Printf("PART 1: %d\n", v[i] * v[j])
+		for j := i + 1; j < len(v); j++ {
+			if v[i]+v[j] == 2020 {
+				fmt.Printf("PART 1: %d\n", v[i]*v[j])
 				break part1
 			}
 		}
 	}
-	
+
+part2:
 	for i := range v {
-		for j := i+1; j < len(v); j++ {
-			for k := j+1; k < len(v); k++ {
+		for j := i + 1; j < len(v); j++ {
+			for k := j + 1; k < len(v); k++ {
 				if v[i]+v[j]+v[k] == 2020 {
 					fmt.Printf("PART 2: %d\n", v[i]*v[j]*v[k])
+					break part2
 				}
 			}
 		}

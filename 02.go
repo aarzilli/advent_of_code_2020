@@ -5,18 +5,12 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
-	"os"
 )
 
 func must(err error) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-// returns x without the last character
-func nolast(x string) string {
-	return x[:len(x)-1]
 }
 
 // splits a string, trims spaces on every element
@@ -46,17 +40,6 @@ func vatoi(in []string) []int {
 	return r
 }
 
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
-func exit(n int) {
-	os.Exit(n)
-}
-
 func verify(rng []int, ch byte, pwd string) bool {
 	m := make(map[byte]int)
 	for i := range pwd {
@@ -77,7 +60,6 @@ func verify2(rng []int, ch byte, pwd string) bool {
 }
 
 func main() {
-	fmt.Printf("hello\n")
 	buf, err := ioutil.ReadFile("02.txt")
 	must(err)
 	cnt := 0
@@ -87,23 +69,20 @@ func main() {
 		if line == "" {
 			continue
 		}
-		
+
 		fields := splitandclean(line, " ", -1)
 		rng := vatoi(splitandclean(fields[0], "-", -1))
 		ch := fields[1][0]
 		pwd := fields[2]
-		
+
 		if verify(rng, ch, pwd) {
 			cnt++
 		}
-		
+
 		if verify2(rng, ch, pwd) {
-			//fmt.Printf("valid\n")
 			cnt2++
-		} else {
-			//fmt.Printf("invalid\n")
 		}
-		
+
 	}
 	fmt.Printf("PART 1: %d\n", cnt)
 	fmt.Printf("PART 2: %d\n", cnt2)
