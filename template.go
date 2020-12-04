@@ -57,11 +57,16 @@ func exit(n int) {
 	os.Exit(n)
 }
 
+func pf(fmtstr string, args ...interface{}) {
+	fmt.Printf(fmtstr, args...)
+}
+
 func main() {
-	fmt.Printf("hello\n")
+	pf("hello %d\n", 3)
 	buf, err := ioutil.ReadFile("XX.txt")
 	must(err)
-	for _, line := range strings.Split(string(buf), "\n") {
+	lines := strings.Split(string(buf), "\n")
+	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
