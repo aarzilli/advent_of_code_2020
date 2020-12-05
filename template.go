@@ -62,7 +62,6 @@ func pf(fmtstr string, args ...interface{}) {
 }
 
 func main() {
-	pf("hello %d\n", 3)
 	buf, err := ioutil.ReadFile("XX.txt")
 	must(err)
 	lines := strings.Split(string(buf), "\n")
