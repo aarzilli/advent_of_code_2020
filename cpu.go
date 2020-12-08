@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -13,6 +14,11 @@ func must(err error) {
 	}
 }
 
+// returns x without the last character
+func nolast(x string) string {
+	return x[:len(x)-1]
+}
+
 // splits a string, trims spaces on every element
 func splitandclean(in, sep string, n int) []string {
 	v := strings.SplitN(in, sep, n)
@@ -20,6 +26,39 @@ func splitandclean(in, sep string, n int) []string {
 		v[i] = strings.TrimSpace(v[i])
 	}
 	return v
+}
+
+// convert string to integer
+func atoi(in string) int {
+	n, err := strconv.Atoi(in)
+	must(err)
+	return n
+}
+
+// convert vector of strings to integer
+func vatoi(in []string) []int {
+	r := make([]int, len(in))
+	for i := range in {
+		var err error
+		r[i], err = strconv.Atoi(in[i])
+		must(err)
+	}
+	return r
+}
+
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+func exit(n int) {
+	os.Exit(n)
+}
+
+func pf(fmtstr string, args ...interface{}) {
+	fmt.Printf(fmtstr, args...)
 }
 
 type Instr struct {
@@ -63,48 +102,31 @@ func (a Arg) value(regs map[string]int) int {
 	return regs[a.reg]
 }
 
+const trace = false
+
 var text []Instr
 
 func run() {
 	pc := 0
-	snd := 0
+	acc := 0
 	regs := map[string]int{}
 
-interpLoop:
 	for {
+		if pc >= len(text) {
+			return
+		}
 		instr := text[pc]
+		if trace {
+			pf("at %d %s %#v\n", pc, text[pc].opcode, text[pc].args)
+		}
 		switch instr.opcode {
-		case "snd":
-			snd = instr.args[0].value(regs)
+		case "acc":
+			acc += instr.args[0].value(regs)
 			pc++
-		case "set":
-			instr.argMustBeReg(0)
-			regs[instr.args[0].reg] = instr.args[1].value(regs)
+		case "nop":
 			pc++
-		case "add":
-			instr.argMustBeReg(0)
-			regs[instr.args[0].reg] = instr.args[0].value(regs) + instr.args[1].value(regs)
-			pc++
-		case "mul":
-			instr.argMustBeReg(0)
-			regs[instr.args[0].reg] = instr.args[0].value(regs) * instr.args[1].value(regs)
-			pc++
-		case "mod":
-			instr.argMustBeReg(0)
-			regs[instr.args[0].reg] = instr.args[0].value(regs) % instr.args[1].value(regs)
-			pc++
-		case "rcv":
-			if instr.args[0].value(regs) != 0 {
-				fmt.Printf("recovered %d\n", snd)
-				break interpLoop
-			}
-			pc++
-		case "jgz":
-			if instr.args[0].value(regs) > 0 {
-				pc += instr.args[1].value(regs)
-			} else {
-				pc++
-			}
+		case "jmp":
+			pc += instr.args[0].value(regs)
 		default:
 			panic("blah")
 		}
@@ -112,9 +134,10 @@ interpLoop:
 }
 
 func main() {
-	buf, err := ioutil.ReadFile("../aoc2017bis/18.txt")
+	buf, err := ioutil.ReadFile("XX.txt")
 	must(err)
-	for _, line := range strings.Split(string(buf), "\n") {
+	lines := strings.Split(string(buf), "\n")
+	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
