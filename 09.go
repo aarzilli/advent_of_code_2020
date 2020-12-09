@@ -5,27 +5,12 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
-	"os"
 )
 
 func must(err error) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-// returns x without the last character
-func nolast(x string) string {
-	return x[:len(x)-1]
-}
-
-// splits a string, trims spaces on every element
-func splitandclean(in, sep string, n int) []string {
-	v := strings.SplitN(in, sep, n)
-	for i := range v {
-		v[i] = strings.TrimSpace(v[i])
-	}
-	return v
 }
 
 // convert string to integer
@@ -35,28 +20,6 @@ func atoi(in string) int {
 	return n
 }
 
-// convert vector of strings to integer
-func vatoi(in []string) []int {
-	r := make([]int, len(in))
-	for i := range in {
-		var err error
-		r[i], err = strconv.Atoi(in[i])
-		must(err)
-	}
-	return r
-}
-
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
-func exit(n int) {
-	os.Exit(n)
-}
-
 func pf(fmtstr string, args ...interface{}) {
 	fmt.Printf(fmtstr, args...)
 }
@@ -64,9 +27,9 @@ func pf(fmtstr string, args ...interface{}) {
 var input []int
 
 func valid(n int, start, end int) bool {
-	for i :=  start; i < end; i++ {
-		for j := i+1; j < end; j++ {
-			if input[i] + input[j] == n {
+	for i := start; i < end; i++ {
+		for j := i + 1; j < end; j++ {
+			if input[i]+input[j] == n {
 				return true
 			}
 		}
@@ -97,7 +60,34 @@ func search(tgt int) {
 	}
 }
 
+func fastersearch(tgt int) {
+	prevcumsum := make([]int, len(input))
+	for i := range input {
+		prevcumsum[i] = input[i]
+	}
+
+	for radius := 2; radius < len(input); radius++ {
+		for start := 0; start < len(input); start++ {
+			if start+radius > len(input) {
+				continue
+			}
+			s := prevcumsum[start] + input[start+radius-1]
+			prevcumsum[start] = s
+			if s == tgt {
+				pf("INTERVAL: %d %d\n", start, radius)
+				min, max := minmax(start, radius)
+				pf("MIN %d MAX %d\n", min, max)
+				pf("PART 2: %d\n", min+max)
+				return
+			}
+		}
+	}
+}
+
 func sum(start, radius, tgt int) int {
+	if start+radius >= len(input) {
+		return -1
+	}
 	r := 0
 	for i := 0; i < radius; i++ {
 		r += input[i+start]
@@ -135,8 +125,10 @@ func main() {
 		}
 		input = append(input, atoi(line))
 	}
-	
+
 	tgt := validate(25)
 	//tgt := validate(5)
-	search(tgt)
+	//search(tgt)
+	//pf("\n")
+	fastersearch(tgt)
 }
