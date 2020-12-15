@@ -1,105 +1,42 @@
 package main
 
-import (
-	"fmt"
-	"strconv"
-	"strings"
-	"os"
-)
+import "fmt"
 
-func must(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
-// returns x without the last character
-func nolast(x string) string {
-	return x[:len(x)-1]
-}
-
-// splits a string, trims spaces on every element
-func splitandclean(in, sep string, n int) []string {
-	v := strings.SplitN(in, sep, n)
-	for i := range v {
-		v[i] = strings.TrimSpace(v[i])
-	}
-	return v
-}
-
-// convert string to integer
-func atoi(in string) int {
-	n, err := strconv.Atoi(in)
-	must(err)
-	return n
-}
-
-// convert vector of strings to integer
-func vatoi(in []string) []int {
-	r := make([]int, len(in))
-	for i := range in {
-		var err error
-		r[i], err = strconv.Atoi(in[i])
-		must(err)
-	}
-	return r
-}
-
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
-func exit(n int) {
-	os.Exit(n)
-}
-
-func pf(fmtstr string, args ...interface{}) {
-	fmt.Printf(fmtstr, args...)
-}
-
-var input = []int{ 20,0,1,11,6,3 } // real input
+var input = []int{20, 0, 1, 11, 6, 3} // real input
 //var input = []int{ 0,3,6 } // example
-
-const debug = false
-const part2 = true
 
 func main() {
 	seen := map[int]int{}
 	var last int
-	var diff int
-	
+	var next int
+
 	say := func(num int, round int) {
+		//fmt.Printf("SAY %d\n", num)
 		oldseen, isseen := seen[num]
 		if isseen {
-			diff = round - oldseen
+			next = round - oldseen
 		} else {
-			diff = 0
+			next = 0
 		}
 		seen[num] = round
 		last = num
-		if debug {
-			pf("SAY %d\n", num)
-		}
 	}
-	
+
 	for i := range input {
 		say(input[i], i)
 	}
-	
-	limit := 2020
-	if part2 {
-		limit = 30000000
-	}
-	
+
+	const limit = 30000000
+
 	for round := len(input); round < limit; round++ {
-		if round % 1000000 == 0 {
-			pf("%g%%\n", float64(round)/float64(limit) * 100)
+		if round == 2020 {
+			fmt.Printf("PART 1: %d\n", last)
 		}
-		say(diff, round)
+		if round%1000000 == 0 {
+			fmt.Printf("%0.02g%%\n", float64(round)/float64(limit)*100)
+		}
+		say(next, round)
 	}
-	
-	pf("PART 1: %d\n", last)
+
+	fmt.Printf("PART 2: %d\n", last)
 }
