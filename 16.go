@@ -5,18 +5,12 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
-	"os"
 )
 
 func must(err error) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-// returns x without the last character
-func nolast(x string) string {
-	return x[:len(x)-1]
 }
 
 // splits a string, trims spaces on every element
@@ -46,17 +40,6 @@ func vatoi(in []string) []int {
 	return r
 }
 
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
-func exit(n int) {
-	os.Exit(n)
-}
-
 func pf(fmtstr string, args ...interface{}) {
 	fmt.Printf(fmtstr, args...)
 }
@@ -67,7 +50,7 @@ type rule struct {
 }
 
 type ticket struct {
-	cnt []int
+	cnt   []int
 	valid bool
 }
 
@@ -115,19 +98,19 @@ func main() {
 			w := splitandclean(v[1], " or ", -1)
 			for _, x := range w {
 				ww := vatoi(splitandclean(x, "-", -1))
-				r.rngs = append(r.rngs, [2]int{ ww[0], ww[1] })
+				r.rngs = append(r.rngs, [2]int{ww[0], ww[1]})
 			}
 			rules = append(rules, r)
 		case 1:
 			yourticket = vatoi(splitandclean(line, ",", -1))
 			phase = 2
-		
+
 		case 2:
 			if line != "nearby tickets:" {
 				panic("blah")
 			}
 			phase = 3
-		
+
 		case 3:
 			var t ticket
 			t.cnt = vatoi(splitandclean(line, ",", -1))
@@ -135,9 +118,9 @@ func main() {
 			tickets = append(tickets, &t)
 		}
 	}
-	
+
 	bad := []int{}
-	
+
 	for i := range tickets {
 		for j := range tickets[i].cnt {
 			if !satisfiesAny(tickets[i].cnt[j]) {
@@ -146,9 +129,9 @@ func main() {
 			}
 		}
 	}
-	
+
 	determined := make([]string, len(tickets[0].cnt))
-	
+
 	allowed := make([]map[string]bool, len(tickets[0].cnt))
 	for i := range allowed {
 		allowed[i] = map[string]bool{}
@@ -156,7 +139,7 @@ func main() {
 			allowed[i][rules[k].kind] = true
 		}
 	}
-	
+
 	for i := range tickets {
 		if !tickets[i].valid {
 			continue
@@ -172,10 +155,15 @@ func main() {
 			}
 		}
 	}
-	
-	didsomething := true
-	for didsomething {
-		didsomething = false
+
+	tot := 0
+	for i := range bad {
+		tot += bad[i]
+	}
+	pf("PART 1: %d\n", tot)
+
+	for {
+		changed := false
 		for j := range tickets[0].cnt {
 			if determined[j] != "" {
 				continue
@@ -192,25 +180,28 @@ func main() {
 					}
 					delete(allowed[k], determined[j])
 				}
-				didsomething = true
+				changed = true
 				break
 			}
 		}
+		if !changed {
+			break
+		}
 	}
-	
-	tot := 0
-	for i := range bad {
-		tot += bad[i]
+
+	for i := range determined {
+		if determined[i] == "" {
+			panic("bad input")
+		}
 	}
-	pf("PART 1: %d\n", tot)
-	
+
 	m := 1
 	for i := range yourticket {
 		if strings.HasPrefix(determined[i], "departure") {
 			m *= yourticket[i]
-			pf("%d\n", yourticket[i])
+			pf("%s: %d\n", determined[i], yourticket[i])
 		}
 	}
 	pf("PART 2: %d\n", m)
-	
+
 }
