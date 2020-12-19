@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
-	"os"
 )
 
 func must(err error) {
@@ -14,12 +13,6 @@ func must(err error) {
 	}
 }
 
-// returns x without the last character
-func nolast(x string) string {
-	return x[:len(x)-1]
-}
-
-// splits a string, trims spaces on every element
 func splitandclean(in, sep string, n int) []string {
 	v := strings.SplitN(in, sep, n)
 	for i := range v {
@@ -28,14 +21,12 @@ func splitandclean(in, sep string, n int) []string {
 	return v
 }
 
-// convert string to integer
 func atoi(in string) int {
 	n, err := strconv.Atoi(in)
 	must(err)
 	return n
 }
 
-// convert vector of strings to integer
 func vatoi(in []string) []int {
 	r := make([]int, len(in))
 	for i := range in {
@@ -46,25 +37,10 @@ func vatoi(in []string) []int {
 	return r
 }
 
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
-func exit(n int) {
-	os.Exit(n)
-}
-
-func pf(fmtstr string, args ...interface{}) {
-	fmt.Printf(fmtstr, args...)
-}
-
 type Rule struct {
-	id int
+	id       int
 	Subrules [][]int
-	Match byte
+	Match    byte
 }
 
 var Rules = map[int]*Rule{}
@@ -76,74 +52,80 @@ func (r *Rule) match(line string) (ok bool, rest string) {
 		}
 		return false, ""
 	}
-	
-	switch r.id {
-	case 0:
-		count42 := 0
+
+	for i := range r.Subrules {
 		rest := line
-		rests := []string{ rest }
-		for {
-			ok, rest = Rules[42].match(rest)
-			if !ok {
+		subok := true
+		for _, id := range r.Subrules[i] {
+			var subsubok bool
+			subsubok, rest = Rules[id].match(rest)
+			if !subsubok {
+				subok = false
 				break
 			}
-			rests = append(rests, rest)
-			count42++
 		}
-		
-		pf("\trule 42 can be matched %d times\n", count42)
-		for i := range rests {
-			pf("\t\t%d %d\n", i, len(rests[i]))
+
+		if subok {
+			return true, rest
 		}
-		
-		for len(rests) > 0 {
-			pf("\ttrying %d %q (%d)\n", len(rests), rests[len(rests)-1], len(rests[len(rests)-1]))
-			rest := rests[len(rests)-1]
-			rests = rests[:len(rests)-1]
-			
-			count31 := 0
-			for len(rest) > 0 {
-				ok, rest = Rules[31].match(rest)
-				if !ok {
-					count31 = -1
-					break
-				}
-				count31++
-			}
-			
-			pf("\trule 31 can be matched %d times (rest = %d)\n", count31, len(rest))
-			if count31 > 0 && rest == "" && count42-count31 > 0 {
-				pf("\tret true with %d+%d\n", count42, count31)
-				return true, ""
-			}
-		}
-		
-		return false, ""
-	
-	default:
-		for i := range r.Subrules {
-			rest := line
-			subok := true
-			for _, id := range r.Subrules[i] {
-				var subsubok bool
-				subsubok, rest = Rules[id].match(rest)
-				if !subsubok {
-					subok = false
-					break
-				}
-			}
-			
-			if subok {
-				return true, rest
-			}
-		}
-	
-		return false, ""
 	}
+
+	return false, ""
+}
+
+func part2match(line string) bool {
+	count42 := 0
+	rest := line
+	rests := []string{rest}
+	for {
+		var ok bool
+		ok, rest = Rules[42].match(rest)
+		if !ok {
+			break
+		}
+		rests = append(rests, rest)
+		count42++
+	}
+
+	for len(rests) > 0 {
+		rest := rests[len(rests)-1]
+		rests = rests[:len(rests)-1]
+
+		count31 := 0
+		for len(rest) > 0 {
+			var ok bool
+			ok, rest = Rules[31].match(rest)
+			if !ok {
+				count31 = -1
+				break
+			}
+			count31++
+		}
+
+		if count31 > 0 && rest == "" && count42-count31 > 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
+func countmatch(text string, match func(string) bool) int {
+	n := 0
+	for _, line := range splitandclean(text, "\n", -1) {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if match(line) {
+			n++
+		}
+	}
+	return n
 }
 
 func main() {
-	buf, err := ioutil.ReadFile("19p2.txt")
+	buf, err := ioutil.ReadFile("19.txt")
 	must(err)
 	blocks := strings.Split(string(buf), "\n\n")
 	for _, line := range splitandclean(blocks[0], "\n", -1) {
@@ -153,9 +135,9 @@ func main() {
 		}
 		v := splitandclean(line, ":", -1)
 		id := atoi(v[0])
-		
-		rule := &Rule{ id: id }
-		
+
+		rule := &Rule{id: id}
+
 		if v[1][0] == '"' {
 			rule.Match = v[1][1]
 		} else {
@@ -165,24 +147,14 @@ func main() {
 				rule.Subrules = append(rule.Subrules, seq)
 			}
 		}
-		
-		pf("%#v\n", rule)
-		
+
 		Rules[rule.id] = rule
 	}
-	
-	n := 0
-	for _, line := range splitandclean(blocks[1], "\n", -1) {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		pf("matching %q\n", line)
-		if ok, rest := Rules[0].match(line); ok && rest == "" {
-			pf("\tmatch\n")
-			n++
-		}
-	}
-	
-	pf("PART 1: %d\n", n)
+
+	fmt.Printf("PART 1: %d\n", countmatch(blocks[1], func(line string) bool {
+		ok, rest := Rules[0].match(line)
+		return ok && rest == ""
+	}))
+
+	fmt.Printf("PART 2: %d\n", countmatch(blocks[1], part2match))
 }
