@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -28,33 +27,10 @@ func splitandclean(in, sep string, n int) []string {
 	return v
 }
 
-// convert string to integer
 func atoi(in string) int {
 	n, err := strconv.Atoi(in)
 	must(err)
 	return n
-}
-
-// convert vector of strings to integer
-func vatoi(in []string) []int {
-	r := make([]int, len(in))
-	for i := range in {
-		var err error
-		r[i], err = strconv.Atoi(in[i])
-		must(err)
-	}
-	return r
-}
-
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
-func exit(n int) {
-	os.Exit(n)
 }
 
 func pf(fmtstr string, args ...interface{}) {
@@ -155,126 +131,78 @@ func change(tile *Tile, fliph, flipv, rotate bool) {
 	}
 }
 
-var arrang [][]int
+func copytile(tile *Tile) *Tile {
+	var r Tile
+	r.id = tile.id
+	r.M = make([][]byte, len(tile.M))
+	for i := range tile.M {
+		r.M[i] = append(r.M[i], tile.M[i]...)
+	}
+	return &r
+}
+
+func views(tile *Tile) []*Tile {
+	r := []*Tile{tile}
+
+	flips := func(tile *Tile) {
+		t2 := copytile(tile)
+		change(t2, true, false, false)
+		r = append(r, t2)
+
+		t2 = copytile(tile)
+		change(t2, false, true, false)
+		r = append(r, t2)
+
+		t2 = copytile(tile)
+		change(t2, true, true, false)
+		r = append(r, t2)
+	}
+
+	flips(tile)
+
+	trot := copytile(tile)
+	change(trot, false, false, true)
+	r = append(r, trot)
+	flips(trot)
+
+	return r
+}
+
+var arrang [][]*Tile
 
 const debug = false
 
-func findnext(i, j int) {
-	id := arrang[i][j]
-	t := gettile(id)
+func findnext(i, j, myb, otherb int) *Tile {
+	t := arrang[i][j]
 	b := borders(t)
 
 	if debug {
 		pf("%q\n", b)
 	}
 
-	bottom := b[1]
-	right := b[3]
+	myborder := b[myb]
 
-	if len(assoc[bottom]) > 2 {
-		panic(fmt.Errorf("can't deal with this %#v", assoc[bottom]))
+	if len(assoc[myborder]) > 2 {
+		panic(fmt.Errorf("can't deal with this %#v", assoc[myborder]))
 	}
 
-	if len(assoc[right]) > 2 {
-		panic(fmt.Errorf("can't deal with this %#v", assoc[right]))
-	}
-
-	for _, c := range assoc[bottom] {
-		if c.id == id {
+	for _, c := range assoc[myborder] {
+		if c.id == t.id {
 			continue
 		}
 
-		if debug {
-			pf("%d,%d is %d\n", i+1, j, c.id)
-		}
-		arrang[i+1][j] = c.id
-
 		t2 := gettile(c.id)
 
-		if borders(t2)[0] != bottom {
-			switch c.borderi {
-			case 0:
-				if c.flip {
-					change(t2, false, true, false)
-				} else {
-					// ok as is
-				}
-			case 1:
-				if c.flip {
-					change(t2, true, true, false)
-				} else {
-					change(t2, true, false, false)
-				}
-			case 2:
-				change(t2, false, false, true)
-				change(t2, false, !c.flip, false)
-			case 3:
-				change(t2, false, false, true)
-				change(t2, true, !c.flip, false)
+		for _, t3 := range views(t2) {
+			if borders(t3)[otherb] == myborder {
+				return t3
 			}
 		}
 
-		if borders(t2)[0] != bottom {
-			printile(t2)
-			pf("%#v\n", c)
-			pf("%q %q\n", borders(t2)[0], bottom)
-			panic("mismatch")
-		}
-
-		if debug {
-			printile(t2)
-		}
-
-		break
+		panic("blah")
 	}
 
-	for _, c := range assoc[right] {
-		if c.id == id {
-			continue
-		}
-
-		if debug {
-			pf("%d,%d is %d\n", i, j+1, c.id)
-		}
-		arrang[i][j+1] = c.id
-
-		t2 := gettile(c.id)
-
-		if borders(t2)[2] != right {
-			switch c.borderi {
-			case 0:
-				change(t2, false, false, true)
-				change(t2, c.flip, true, false)
-			case 1:
-				change(t2, false, false, true)
-				change(t2, c.flip, false, false)
-			case 2:
-				if c.flip {
-					change(t2, true, false, false)
-				} else {
-					// of as is
-				}
-			case 3:
-				if c.flip {
-					change(t2, true, true, false)
-				} else {
-					change(t2, false, true, false)
-				}
-			}
-		}
-
-		if borders(t2)[2] != right {
-			pf("%#v\n", c)
-			pf("%q %q\n", borders(t2)[2], right)
-			panic("mismatch")
-		}
-
-		if debug {
-			printile(t2)
-		}
-
-		break
-	}
+	return nil
 }
 
 func printile(t *Tile) {
@@ -283,7 +211,15 @@ func printile(t *Tile) {
 	}
 }
 
-var bigm [][]byte
+func getcoord(tile *Tile, i, j int) byte {
+	if i < 0 || i >= len(tile.M) {
+		return '.'
+	}
+	if j < 0 || j >= len(tile.M[i]) {
+		return '.'
+	}
+	return tile.M[i][j]
+}
 
 var monster = [][]byte{
 	[]byte(".#...#.###...#.##.O#.."),
@@ -291,37 +227,32 @@ var monster = [][]byte{
 	[]byte("#O.#O#.O##O..O.#O##.##"),
 }
 
-func getbigm(i, j int) byte {
-	if i < 0 || i >= len(bigm) {
-		return '.'
-	}
-	if j < 0 || j >= len(bigm[i]) {
-		return '.'
-	}
-	return bigm[i][j]
-}
+const debugmonster = false
 
-func findmonster(si, sj int) {
+func findmonster(bigm *Tile, si, sj int) bool {
 	for i := range monster {
 		for j := range monster[i] {
 			if monster[i][j] != 'O' {
 				continue
 			}
-			if getbigm(si+i, sj+j) != '#' {
-				return
+			if getcoord(bigm, si+i, sj+j) != '#' {
+				return false
 			}
 		}
 	}
 
-	pf("found at %d,%d\n", si, sj)
+	if debugmonster {
+		pf("found at %d,%d\n", si, sj)
+	}
 
 	for i := range monster {
 		for j := range monster[i] {
 			if monster[i][j] == 'O' {
-				bigm[si+i][sj+j] = 'O'
+				bigm.M[si+i][sj+j] = 'O'
 			}
 		}
 	}
+	return true
 }
 
 func main() {
@@ -357,8 +288,6 @@ func main() {
 		}
 	}
 
-	//pf("%#v\n", assoc)
-
 	m := map[int]int{}
 
 	for _, v := range assoc {
@@ -366,13 +295,10 @@ func main() {
 			for _, c := range v {
 				m[c.id]++
 			}
-			//pf("%#v\n", v)
 		}
 	}
 
 	minid := 0
-
-	corners := map[int]bool{}
 
 	tot := 1
 	for id := range m {
@@ -380,8 +306,6 @@ func main() {
 			if minid == 0 || id < minid {
 				minid = id
 			}
-			corners[id] = true
-			pf("%d\n", id)
 			tot *= id
 		}
 	}
@@ -392,50 +316,28 @@ func main() {
 		minid = 1951
 	}
 
-	arrang = make([][]int, 200)
+	arrang = make([][]*Tile, 200)
 	for i := range arrang {
-		arrang[i] = make([]int, 200)
+		arrang[i] = make([]*Tile, 200)
 	}
 
-	arrang[0][0] = minid
-	fliph := false
-	flipv := false
-
-	for _, v := range assoc {
-		if len(v) == 1 {
-			continue
-		}
-
-		ok, meborder, _ := contains(v, minid)
-		if ok {
-			if meborder == 0 {
-				fliph = true
-			}
-			if meborder == 2 {
-				flipv = true
-			}
-			//pf("%d\n", meborder)
+	// pick the smallest corner, then rotate and flip it until it can fit as the top left corner
+	for _, t := range views(gettile(minid)) {
+		b := borders(t)
+		if len(assoc[b[1]]) == 2 && len(assoc[b[3]]) == 2 {
+			arrang[0][0] = t
+			break
 		}
 	}
-
-	_, _ = fliph, flipv
-
-	pf("%v %v\n", fliph, flipv)
-
-	change(gettile(minid), fliph, flipv, false)
-
-	pf("%d %v\n", minid, arrang[0][0])
-
-	/*t := gettile(minid)
-	printile(t)*/
 
 	for i := 0; i < 200; i++ {
 		for j := 0; j < 200; j++ {
 			//pf("%d,%d\n", i, j)
-			if arrang[i][j] == 0 {
+			if arrang[i][j] == nil {
 				break
 			}
-			findnext(i, j)
+			arrang[i+1][j] = findnext(i, j, 1, 0)
+			arrang[i][j+1] = findnext(i, j, 3, 2)
 		}
 	}
 
@@ -443,31 +345,29 @@ func main() {
 
 	for i := 0; i < 200; i++ {
 		for j := 0; j < 200; j++ {
-			if arrang[i][j] == 0 {
+			if arrang[i][j] == nil {
 				break
 			}
 			maxi = i
 			maxj = j
+
+			tile := arrang[i][j]
+			tile.M = tile.M[1:]
+			tile.M = tile.M[:len(tile.M)-1]
+			for i := range tile.M {
+				tile.M[i] = tile.M[i][1:]
+				tile.M[i] = tile.M[i][:len(tile.M[i])-1]
+			}
 		}
 	}
 
-	for _, tile := range tiles {
-		tile.M = tile.M[1:]
-		tile.M = tile.M[:len(tile.M)-1]
-		for i := range tile.M {
-			tile.M[i] = tile.M[i][1:]
-			tile.M[i] = tile.M[i][:len(tile.M[i])-1]
-		}
-
-	}
-
-	bigm = make([][]byte, 1)
+	bigm := make([][]byte, 1)
 
 	for i := 0; i <= maxi; i++ {
-		t := gettile(arrang[i][0])
+		t := arrang[i][0]
 		for row := 0; row < len(t.M); row++ {
 			for j := 0; j <= maxj; j++ {
-				t := gettile(arrang[i][j])
+				t := arrang[i][j]
 				bigm[len(bigm)-1] = append(bigm[len(bigm)-1], t.M[row]...)
 			}
 			bigm = append(bigm, []byte{})
@@ -478,29 +378,26 @@ func main() {
 		bigm = bigm[:len(bigm)-1]
 	}
 
-	bigtile := &Tile{M: bigm}
-	change(bigtile, true, false, false)
-	//change(bigtile, false, false, true)
-	//change(bigtile, false, true, false)
-	//printile(bigtile)
-	//pf("\n")
-	bigm = bigtile.M
-
-	for i := range bigm {
-		for j := range bigm[i] {
-			findmonster(i, j)
-		}
-	}
-
-	tot2 := 0
-	for i := range bigm {
-		for j := range bigm[i] {
-			if bigm[i][j] == '#' {
-				tot2++
+	for _, t := range views(&Tile{M: bigm}) {
+		ok := false
+		for i := range t.M {
+			for j := range t.M[i] {
+				if findmonster(t, i, j) {
+					ok = true
+				}
 			}
 		}
+		if ok {
+			tot2 := 0
+			for i := range t.M {
+				for j := range t.M[i] {
+					if t.M[i][j] == '#' {
+						tot2++
+					}
+				}
+			}
+
+			pf("PART 2: %d\n", tot2)
+		}
 	}
-
-	pf("PART 2: %d\n", tot2)
-
 }
