@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
-	"os"
 )
 
 func must(err error) {
@@ -49,104 +48,20 @@ func vatoi(in []string) []int {
 	return r
 }
 
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
-func exit(n int) {
-	os.Exit(n)
-}
-
 func pf(fmtstr string, args ...interface{}) {
 	fmt.Printf(fmtstr, args...)
 }
 
+const (
+	debug1 = false
+	debug2 = false
+)
+
 type Game struct {
-	id int
-	cnt int
-	player1, player2 []int
+	id                 int
+	cnt                int
+	player1, player2   []int
 	p1states, p2states map[string]bool
-}
-
-func (g *Game) state() {
-	pf("player1=%v\n", g.player1)
-	pf("player2=%v\n", g.player2)
-}
-
-func (g *Game) round() bool {
-	//doprint := g.id < 10
-	doprint := false
-	if doprint {	
-		pf("-- Round %d (Game %d) --\n", g.cnt+1, g.id+1)
-		g.state()
-	}
-	p1state := fmt.Sprintf("%v", g.player1)
-	p2state := fmt.Sprintf("%v", g.player2)
-	if g.p1states[p1state] {
-		if doprint {
-			pf("end by check\n")
-		}
-		return false
-	}
-	if g.p2states[p2state] {
-		if doprint {
-			pf("end by check\n")
-		}
-		return false
-	}
-	
-	g.p1states[p1state] = true
-	g.p2states[p2state] = true
-	
-	var winner, loser *[]int
-	
-	if g.player1[0] < len(g.player1) && g.player2[0] < len(g.player2) {
-		if doprint {
-			pf("recursive!\n")
-		}
-		g2 := newgame(g.player1[1:][:g.player1[0]], g.player2[1:][:g.player2[0]])
-		winid := g2.playgame()
-		if winid == 1 {
-			winner = &g.player1
-			loser = &g.player2
-		} else {
-			pf("PLAYER 2 WON?!\n")
-			winner = &g.player2
-			loser = &g.player1
-		}
-	} else {
-		if g.player1[0] > g.player2[0] {
-			winner = &g.player1
-			loser = &g.player2
-			if doprint {
-				pf("player1 wins (round %d game %d)!\n", g.cnt, g.id+1)
-			}
-		} else {
-			winner = &g.player2
-			loser = &g.player1
-			if doprint {
-				pf("player2 wins (round %d game %d)!\n", g.cnt, g.id+1)
-			}
-		}
-	}
-	
-	wincard := (*winner)[0]
-	losscard := (*loser)[0]
-	(*winner) = (*winner)[1:]
-	(*loser) = (*loser)[1:]
-	
-	(*winner) = append(*winner, wincard)
-	(*winner) = append(*winner, losscard)
-	
-	if doprint {
-		pf("\n")
-	}
-	g.cnt++
-	
-	return true
 }
 
 var gameid = 0
@@ -162,16 +77,101 @@ func newgame(player1, player2 []int) *Game {
 	return g
 }
 
+func (g *Game) state() {
+	pf("player1=%v\n", g.player1)
+	pf("player2=%v\n", g.player2)
+}
+
+func resolve(winner, loser *[]int) {
+	// this leaks memory but it doesn't matter
+	wincard := (*winner)[0]
+	losscard := (*loser)[0]
+	(*winner) = (*winner)[1:]
+	(*loser) = (*loser)[1:]
+	(*winner) = append(*winner, wincard)
+	(*winner) = append(*winner, losscard)
+}
+
+func (g *Game) playgame1() {
+	for n := 0; true; n++ {
+		if debug1 {
+			pf("round %d\n", n)
+			g.state()
+		}
+		if g.player1[0] > g.player2[0] {
+			resolve(&g.player1, &g.player2)
+		} else {
+			resolve(&g.player2, &g.player1)
+		}
+		if len(g.player1) == 0 || len(g.player2) == 0 {
+			break
+		}
+	}
+}
+
+func checkrepeat(deck []int, seen map[string]bool) bool {
+	state := fmt.Sprintf("%v", deck)
+	if seen[state] {
+		return true
+	}
+	seen[state] = true
+	return false
+}
+
+func (g *Game) round2() bool {
+	if debug2 {
+		pf("-- Round %d (Game %d) --\n", g.cnt+1, g.id+1)
+		g.state()
+	}
+	if checkrepeat(g.player1, g.p1states) || checkrepeat(g.player2, g.p2states) {
+		if debug2 {
+			pf("end by check\n")
+		}
+		return false
+	}
+
+	if g.player1[0] < len(g.player1) && g.player2[0] < len(g.player2) {
+		if debug2 {
+			pf("recursive!\n")
+		}
+		g2 := newgame(g.player1[1:][:g.player1[0]], g.player2[1:][:g.player2[0]])
+		winid := g2.playgame2()
+		if winid == 1 {
+			resolve(&g.player1, &g.player2)
+		} else {
+			resolve(&g.player2, &g.player1)
+		}
+	} else {
+		if g.player1[0] > g.player2[0] {
+			resolve(&g.player1, &g.player2)
+			if debug2 {
+				pf("player1 wins (round %d game %d)!\n", g.cnt, g.id+1)
+			}
+		} else {
+			resolve(&g.player2, &g.player1)
+			if debug2 {
+				pf("player2 wins (round %d game %d)!\n", g.cnt, g.id+1)
+			}
+		}
+	}
+
+	if debug2 {
+		pf("\n")
+	}
+	g.cnt++
+
+	return true
+}
+
 var cache = map[string]int{}
 
-func (g *Game) playgame() int {
+func (g *Game) playgame2() int {
 	key := fmt.Sprintf("player1=%v player2=%v", g.player1, g.player2)
 	if r, ok := cache[key]; ok {
-		pf("skipping game %d, player %d will win\n", g.id, r)
 		return r
 	}
 	for {
-		ok := g.round()
+		ok := g.round2()
 		if !ok {
 			cache[key] = 1
 			return 1
@@ -180,14 +180,14 @@ func (g *Game) playgame() int {
 			break
 		}
 	}
-	
+
 	var r int
 	if len(g.player1) == 0 {
 		r = 2
 	} else {
 		r = 1
 	}
-	
+
 	cache[key] = r
 	return r
 }
@@ -195,7 +195,7 @@ func (g *Game) playgame() int {
 func calcscore(winner []int) int {
 	tot := 0
 	for i := range winner {
-		tot += winner[i] * (len(winner)-i)
+		tot += winner[i] * (len(winner) - i)
 	}
 	return tot
 }
@@ -204,16 +204,18 @@ func main() {
 	buf, err := ioutil.ReadFile("22.txt")
 	must(err)
 	blocks := strings.Split(string(buf), "\n\n")
-	
+
 	player1 := vatoi(nolastif(splitandclean(blocks[0], "\n", -1)[1:]))
 	player2 := vatoi(nolastif(splitandclean(blocks[1], "\n", -1)[1:]))
-	
+
 	g := newgame(player1, player2)
-	
-	winner := g.playgame()
-	pf("winner is %d\n", winner)
-	
-	pf("post game:\n")
-	g.state()
+	g.playgame1()
+	pf("PART 1: %d %d\n", calcscore(g.player1), calcscore(g.player2))
+
+	g = newgame(player1, player2)
+	g.playgame2()
+	if debug2 {
+		g.state()
+	}
 	pf("PART 2: %d %d\n", calcscore(g.player1), calcscore(g.player2))
 }
