@@ -5,27 +5,12 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
-	"os"
 )
 
 func must(err error) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-// returns x without the last character
-func nolast(x string) string {
-	return x[:len(x)-1]
-}
-
-// splits a string, trims spaces on every element
-func splitandclean(in, sep string, n int) []string {
-	v := strings.SplitN(in, sep, n)
-	for i := range v {
-		v[i] = strings.TrimSpace(v[i])
-	}
-	return v
 }
 
 // convert string to integer
@@ -46,17 +31,6 @@ func vatoi(in []string) []int {
 	return r
 }
 
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
-func exit(n int) {
-	os.Exit(n)
-}
-
 func pf(fmtstr string, args ...interface{}) {
 	fmt.Printf(fmtstr, args...)
 }
@@ -70,11 +44,14 @@ func transf(subjectNumber, loopSize int) int {
 	return value
 }
 
-func findLoopSize(subj, tgt int) int {
+func findLoopSize(subj, tgt0, tgt1 int) (loopsz, which int) {
 	value := 1
 	for cnt := 0; ; cnt++ {
-		if value == tgt {
-			return cnt
+		if value == tgt0 {
+			return cnt, 0
+		}
+		if value == tgt1 {
+			return cnt, 1
 		}
 		value *= subj
 		value = value % 20201227
@@ -90,16 +67,8 @@ func main() {
 		panic("blah")
 	}
 	pf("%v\n", input)
-	
-	/*cardpub := 5764801
-	doorpub := 17807724*/
-	
-	cardpub := input[0]
-	doorpub := input[1]
-	
-	cardls := findLoopSize(7, cardpub)
-	pf("card loop size: %d\n", cardls)
-	//pf("door loop size: %d\n", findLoopSize(7, doorpub))
-	
-	pf("encryption key: %d\n", transf(doorpub, cardls))
+
+	loopsz, idx := findLoopSize(7, input[0], input[1])
+	pf("loop size: %d (input line %d)\n", loopsz, idx)
+	pf("encryption key: %d (19414467)\n", transf(input[(idx+1)%2], loopsz))
 }
